@@ -37,3 +37,11 @@ pip install -r requirements.txt
 
 - Use run.py : `python3 run.py`
 - OR, run FastAPI Server: `uvicorn app.main:app --reload`
+- Run Celery Worker
+  - Make sure Redis is running, then start a Celery worker: `celery -A app.celery_worker worker --loglevel=info`
+
+### Features
+
+- User registration and login
+- JWT authentication
+- Asynchronous task execution with Celery for calculating the first N prime numbers.

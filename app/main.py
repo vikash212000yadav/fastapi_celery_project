@@ -1,8 +1,10 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, Security
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from . import models, schemas, crud, auth
+from . import models, schemas, crud, auth, celery_worker
 from .database import engine
+from credentials import SLEEP_TIME
+
 
 # Create the database tables based on SQLAlchemy models
 models.Base.metadata.create_all(bind=engine)
@@ -34,3 +36,20 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         raise HTTPException(status_code=400, detail="Incorrect username or password")
     access_token = auth.create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+# Endpoint to get first n prime numbers using async celery call
+@app.get("/calculate-primes/{n}")
+def calculate_primes(n: int, current_user: schemas.UserInDB = Security(auth.get_current_user)):
+    task = celery_worker.get_primes.delay(n, SLEEP_TIME)
+    return {"message": "Processing", "task_id": task.id}
+
+
+# Endpoint to check the task-status using task_id
+@app.get("/task-status/{task_id}")
+def get_task_status(task_id: str):
+    task_result = celery_worker.celery.AsyncResult(task_id)
+    if task_result.ready():
+        return {"status": "Completed", "result": task_result.get()}
+    else:
+        return {"status": "Processing"}
